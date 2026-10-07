@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Musify GitLab Edition</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #1a0033 0, #050509 60%, #000000 100%);
+      color: #ffffff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    #app { display: flex; flex: 1; overflow: hidden; }
+    #sidebar, #albums, #tracks {
+      padding: 20px;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      overflow-y: auto;
+    }
+    #sidebar {
+      flex: 1;
+      min-width: 180px;
+      max-width: 260px;
+      background: linear-gradient(180deg, rgba(10,0,30,0.9), rgba(5,0,20,0.7));
+      backdrop-filter: blur(16px);
+    }
+    #albums { flex: 1.2; min-width: 200px; }
+    #tracks { flex: 2; min-width: 240px; }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #c58cff;
+    }
+
+    .card {
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(127,0,255,0.7);
+      background: radial-gradient(circle at top left, rgba(127,0,255,0.25), rgba(0,0,0,0.9));
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 14px rgba(127,0,255,0.9);
+      border-color: #00e5ff;
+    }
+    .card span.label { font-size: 14px; }
+    .card span.sub { font-size: 11px; opacity: 0.7; }
+
+    .albumCard {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(127,0,255,0.7);
+      background: rgba(0,0,0,0.4);
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .albumCard:hover {
+      box-shadow: 0 0 14px #7f00ff;
+      border-color: #00e5ff;
+    }
+    .albumCover {
+      width: 60px;
+      height: 60px;
+      border-radius: 6px;
+      object-fit: cover;
+      box-shadow: 0 0 12px rgba(127,0,255,0.8);
+    }
+
+    #playerBar {
+      height: 120px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      background: linear-gradient(90deg, rgba(10,0,30,0.95), rgba(0,20,40,0.95));
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 10px 20px;
+      gap: 10px;
+    }
+    #nowPlaying {
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #9fdfff;
+    }
+
+    #controlsRow {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    #controlsRow button {
+      background: rgba(127,0,255,0.3);
+      border: 1px solid rgba(127,0,255,0.7);
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    #controlsRow button:hover {
+      background: rgba(0,229,255,0.4);
+      box-shadow: 0 0 10px #00e5ff;
+    }
+    #volumeSlider {
+      width: 120px;
+      accent-color: #00e5ff;
+    }
+
+    #playerControls {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #progressContainer {
+      position: relative;
+      height: 12px;
+      width: 100%;
+      background: rgba(127,0,255,0.25);
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(127,0,255,0.4);
+    }
+    #progressBar {
+      position: absolute;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #7f00ff, #00e5ff);
+      box-shadow: 0 0 12px #7f00ff;
+      transition: width 0.1s linear;
+    }
+    #progressThumb {
+      position: absolute;
+      top: -4px;
+      height: 20px;
+      width: 20px;
+      background: #00e5ff;
+      border-radius: 50%;
+      box-shadow: 0 0 12px #00e5ff;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    @media (max-width: 900px) {
+      #app { flex-direction: column; }
+      #sidebar, #albums, #tracks {
+        width: 100%;
+        max-width: none;
+        border-right: none;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+      #controlsRow { flex-wrap: wrap; justify-content: center; }
+      #volumeSlider { width: 160px; }
+      .albumCover { width: 70px; height: 70px; }
+    }
+    @media (max-width: 480px) {
+      #controlsRow button {
+        padding: 6px 10px;
+        font-size: 14px;
+      }
+      #volumeSlider { width: 120px; }
+      #progressContainer { height: 10px; }
+      #progressThumb { height: 16px; width: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app">
+    <div id="sidebar">
+      <h2>Artists</h2>
+      <div id="artistList"></div>
+    </div>
+
+    <div id="albums">
+      <h2>Albums</h2>
+      <div id="albumList"></div>
+    </div>
+
+    <div id="tracks">
+      <h2>Tracks</h2>
+      <div id="trackList"></div>
+    </div>
+  </div>
+
+  <div id="playerBar">
+    <div id="nowPlaying">Nothing playing</div>
+
+    <div id="playerControls">
+      <div id="controlsRow">
+        <button id="prevBtn">⏮</button>
+        <button id="playPauseBtn">⏵</button>
+        <button id="nextBtn">⏭</button>
+        <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="1">
+      </div>
+
+      <div id="progressContainer">
+        <div id="progressBar"></div>
+        <div id="progressThumb"></div>
+      </div>
+
+      <audio id="player"></audio>
+    </div>
+  </div>
+
+  <script>
+    // 🔥 CHANGE THESE TO YOUR GITLAB RAW URLS
+    const GITLAB_BASE = "https://gitlab.com/USERNAME/REPO/-/raw/main/music";
+    const INDEX_URL   = GITLAB_BASE + "/index.json";
+
+    const artistListEl = document.getElementById("artistList");
+    const albumListEl  = document.getElementById("albumList");
+    const trackListEl  = document.getElementById("trackList");
+    const playerEl     = document.getElementById("player");
+    const nowPlayingEl = document.getElementById("nowPlaying");
+
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const prevBtn      = document.getElementById("prevBtn");
+    const nextBtn      = document.getElementById("nextBtn");
+    const volumeSlider = document.getElementById("volumeSlider");
+
+    const progressContainer = document.getElementById("progressContainer");
+    const progressBar       = document.getElementById("progressBar");
+    const progressThumb     = document.getElementById("progressThumb");
+
+    let currentArtist = null;
+    let currentAlbum  = null;
+    let currentTrackList = [];
+    let currentTrackIndex = -1;
+    let indexData = null;
+
+    async function loadIndex() {
+      const res = await fetch(INDEX_URL);
+      indexData = await res.json();
+      renderArtists();
+    }
+
+    function renderArtists() {
+      const artists = Object.keys(indexData);
+      artistListEl.innerHTML = artists.map(a => `
+        <div class="card" onclick="onArtistClick('${a}')">
+          <span class="label">${a}</span>
+          <span class="sub">Artist</span>
+        </div>
+      `).join("");
+    }
+
+    function renderAlbums(artist) {
+      const albums = Object.keys(indexData[artist]);
+      albumListEl.innerHTML = albums.map(alb => {
+        const cover = indexData[artist][alb].cover
+          ? GITLAB_BASE + "/" + indexData[artist][alb].cover
+          : "";
+        return `
+          <div class="albumCard" onclick="onAlbumClick('${artist}','${alb}')">
+            ${cover ? `<img src="${cover}" class="albumCover" onerror="this.style.display='none'">` : ""}
+            <div>
+              <div class="label">${alb}</div>
+              <div class="sub">Album</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderTracks(artist, album) {
+      const tracks = indexData[artist][album].tracks;
+      currentTrackList = tracks.map(t => ({
+        title: t.title,
+        url: GITLAB_BASE + "/" + t.file
+      }));
+      currentTrackIndex = -1;
+
+      trackListEl.innerHTML = tracks.map((t, i) => `
+        <div class="card" onclick="playTrack(${i})">
+          <span class="label">${t.title}</span>
+          <span class="sub">${artist} • ${album}</span>
+        </div>
+      `).join("");
+    }
+
+    function onArtistClick(artist) {
+      currentArtist = artist;
+      currentAlbum  = null;
+      renderAlbums(artist);
+      trackListEl.innerHTML = "";
+    }
+
+    function onAlbumClick(artist, album) {
+      currentArtist = artist;
+      currentAlbum  = album;
+      renderTracks(artist, album);
+    }
+
+    function playTrack(index) {
+      currentTrackIndex = index;
+      const track = currentTrackList[index];
+      playerEl.src = track.url;
+      playerEl.play();
+      playPauseBtn.textContent = "⏸";
+      nowPlayingEl.textContent = track.title;
+    }
+
+    playPauseBtn.addEventListener("click", () => {
+      if (playerEl.paused) {
+        playerEl.play();
+        playPauseBtn.textContent = "⏸";
+      } else {
+        playerEl.pause();
+        playPauseBtn.textContent = "⏵";
+      }
+    });
+
+    nextBtn.addEventListener("click", () => {
+      const nextIndex = currentTrackIndex + 1;
+      if (nextIndex < currentTrackList.length) {
+        playTrack(nextIndex);
+      }
+    });
+
+    prevBtn.addEventListener("click", () => {
+      const prevIndex = currentTrackIndex - 1;
+      if (prevIndex >= 0) {
+        playTrack(prevIndex);
+      }
+    });
+
+    volumeSlider.addEventListener("input", () => {
+      playerEl.volume = volumeSlider.value;
+    });
+
+    playerEl.addEventListener("ended", () => {
+      const nextIndex = currentTrackIndex + 1;
+      if (nextIndex < currentTrackList.length) {
+        playTrack(nextIndex);
+      } else {
+        nowPlayingEl.textContent = "Album finished";
+        playPauseBtn.textContent = "⏵";
+      }
+    });
+
+    playerEl.addEventListener("timeupdate", () => {
+      if (!playerEl.duration) return;
+      const percent = (playerEl.currentTime / playerEl.duration) * 100;
+      progressBar.style.width = percent + "%";
+      progressThumb.style.left = percent + "%";
+    });
+
+    progressContainer.addEventListener("click", (e) => {
+      const rect = progressContainer.getBoundingClientRect();
+      const percent = (e.clientX - rect.left) / rect.width;
+      playerEl.currentTime = percent * playerEl.duration;
+    });
+
+    let dragging = false;
+    progressContainer.addEventListener("mousedown", () => dragging = true);
+    window.addEventListener("mouseup", () => dragging = false);
+    window.addEventListener("mousemove", (e) => {
+      if (!dragging) return;
+      const rect = progressContainer.getBoundingClientRect();
+      let x = e.clientX - rect.left;
+      x = Math.max(0, Math.min(x, rect.width));
+      const percent = x / rect.width;
+      playerEl.currentTime = percent * playerEl.duration;
+    });
+
+    window.onArtistClick = onArtistClick;
+    window.onAlbumClick  = onAlbumClick;
+    window.playTrack     = playTrack;
+
+    loadIndex();
+  </script>
+</body>
+</html>
